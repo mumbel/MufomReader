@@ -1,0 +1,5 @@
+<opinions>
+    <constraint loader="IEEE-695-MUFOM" compilerSpecID="default">
+    		<constraint primary="PowerPC" processor="PowerPC" size="32" />
+    </constraint>
+</opinions>
