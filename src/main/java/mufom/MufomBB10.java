@@ -16,6 +16,7 @@
 package mufom;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Calendar;
 
 import ghidra.app.util.bin.BinaryReader;
@@ -34,6 +35,7 @@ public class MufomBB10 extends MufomRecord {
 	public long tool_type = -1;
 	public String version = null;
 	public Calendar date;
+	public ArrayList<MufomSymbol> symbols = new ArrayList<MufomSymbol>();
 	
 	MufomBB bb = null;
 	MufomNN nn = null;
@@ -50,7 +52,7 @@ public class MufomBB10 extends MufomRecord {
 	}
 
 	public MufomBB10(BinaryReader reader) throws IOException {
-		Msg.info(this, String.format("%08x ENTER %s", reader.getPointerIndex(), NAME));
+		Msg.trace(this, String.format("%08x ENTER %s", reader.getPointerIndex(), NAME));
 		
 		//TODO  Assembly Module Block Begin (BB10)
 		//TODO      Compiler Generated Global/External Variables (NH, ATK16, ASK)
@@ -99,11 +101,10 @@ public class MufomBB10 extends MufomRecord {
 			}
 		}
 		
-		print();
 		MufomRecord record = MufomRecord.readRecord(reader);
 
 		//TODO  can these two loops be figured out or does it matter
-		Msg.info(this, "Start NN/ATN/ASN  compiler global");
+		Msg.trace(this, "Start NN/ATN/ASN  compiler global");
 		do {
 			if (record instanceof MufomNN) {
 				nn = (MufomNN) record;
@@ -113,16 +114,16 @@ public class MufomBB10 extends MufomRecord {
 				atn = (MufomATN) record;
 				record = MufomRecord.readRecord(reader);
 			} else {
-				Msg.info(this, "expecting ATN");
 				break;
 			}			
 			if (record instanceof MufomASN) {
 				asn = (MufomASN) record;
 				record = MufomRecord.readRecord(reader);
-			}		
-		} while (record instanceof MufomNN);
+			}
+			symbols.add(new MufomSymbol(nn.symbol_name, asn.symbol_name_value, atn.attribute_definition, atn.symbol_name_index));
+		} while (record instanceof MufomNN || record instanceof MufomATN);
 
-		Msg.info(this, "Start NN/ATN/ASN  compiler local");
+		Msg.trace(this, "Start NN/ATN/ASN  compiler local");
 		do {
 			if (record instanceof MufomNN) {
 				nn = (MufomNN) record;
@@ -132,21 +133,21 @@ public class MufomBB10 extends MufomRecord {
 				atn = (MufomATN) record;
 				record = MufomRecord.readRecord(reader);
 			} else {
-				Msg.info(this, "expecting ATN");
 				break;
 			}			
 			if (record instanceof MufomASN) {
 				asn = (MufomASN) record;
 				record = MufomRecord.readRecord(reader);
-			}		
-		} while (record instanceof MufomNN);
+			}
+			symbols.add(new MufomSymbol(nn.symbol_name, asn.symbol_name_value, atn.attribute_definition, atn.symbol_name_index));
+		} while (record instanceof MufomNN || record instanceof MufomATN);
 
-		Msg.info(this, "Start assembler sections");
+		Msg.trace(this, "Start assembler sections");
 		while (record instanceof MufomBB) {
 			MufomBB bb11 = (MufomBB) record;
 
 			if (MufomType.MUFOM_DBLK_MODSEC == bb11.begin_block) {
-				Msg.info(this, "Found assembler sections");
+				symbols.addAll(bb11.bb11.symbols);
 				record = MufomRecord.readRecord(reader);
 			} else {
 				Msg.info(this, "Expected bb11, but " + bb11.begin_block);
@@ -154,7 +155,7 @@ public class MufomBB10 extends MufomRecord {
 			}
 		}
 
-		Msg.info(this, "Start NN/ATN/ASN  global");
+		Msg.trace(this, "Start NN/ATN/ASN  global");
 		do {
 			if (record instanceof MufomNN) {
 				nn = (MufomNN) record;
@@ -164,16 +165,16 @@ public class MufomBB10 extends MufomRecord {
 				atn = (MufomATN) record;
 				record = MufomRecord.readRecord(reader);
 			} else {
-				Msg.info(this, "expecting ATN");
 				break;
 			}			
 			if (record instanceof MufomASN) {
 				asn = (MufomASN) record;
 				record = MufomRecord.readRecord(reader);
-			}		
-		} while (record instanceof MufomNN);
+			}
+			symbols.add(new MufomSymbol(nn.symbol_name, asn.symbol_name_value, atn.attribute_definition, atn.symbol_name_index));
+		} while (record instanceof MufomNN || record instanceof MufomATN);
 
-		Msg.info(this, "Start NN/ATN/ASN  local");
+		Msg.trace(this, "Start NN/ATN/ASN  local");
 		do {
 			if (record instanceof MufomNN) {
 				nn = (MufomNN) record;
@@ -183,17 +184,17 @@ public class MufomBB10 extends MufomRecord {
 				atn = (MufomATN) record;
 				record = MufomRecord.readRecord(reader);
 			} else {
-				Msg.info(this, "expecting ATN");
 				break;
 			}			
 			if (record instanceof MufomASN) {
 				asn = (MufomASN) record;
 				record = MufomRecord.readRecord(reader);
-			}		
-		} while (record instanceof MufomNN);
+			}
+			symbols.add(new MufomSymbol(nn.symbol_name, asn.symbol_name_value, atn.attribute_definition, atn.symbol_name_index));
+		} while (record instanceof MufomNN || record instanceof MufomATN);
 		
 		if (record instanceof MufomLN) {
-			Msg.info(this, String.format("%08x BE %s", reader.getPointerIndex(), NAME));
+			Msg.trace(this, String.format("%08x BE %s", reader.getPointerIndex(), NAME));
 			record.reset(reader);
 			MufomBE be10 = new MufomBE(reader, record_type);
 		}  else {
@@ -201,6 +202,6 @@ public class MufomBB10 extends MufomRecord {
 			throw new IOException();
 		}
 
-		Msg.info(this, String.format("%08x EXIT %s", reader.getPointerIndex(), NAME));
+		Msg.trace(this, String.format("%08x EXIT %s", reader.getPointerIndex(), NAME));
 	}
 }

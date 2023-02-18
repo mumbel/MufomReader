@@ -27,14 +27,14 @@ public class MufomBB extends MufomRecord {
 	public long record_start = -1;
 	public long begin_block = -1;
 	public long block_size = -1;
-	public MufomBB bb1 = null;
-	public MufomBB bb2 = null;
-	public MufomBB bb3 = null;
-	public MufomBB bb4 = null;
-	public MufomBB bb5 = null;
-	public MufomBB bb6 = null;
-	public MufomBB bb10 = null;
-	public MufomBB bb11 = null;
+	public MufomBB1 bb1 = null;
+	public MufomBB2 bb2 = null;
+	public MufomBB3 bb3 = null;
+	public MufomBB4 bb4 = null;
+	public MufomBB5 bb5 = null;
+	public MufomBB6 bb6 = null;
+	public MufomBB10 bb10 = null;
+	public MufomBB11 bb11 = null;
 
 	public long block_start = -1;
 	public long block_end = -1;
@@ -51,43 +51,41 @@ public class MufomBB extends MufomRecord {
 	}
 
 	public MufomBB(BinaryReader reader) throws IOException {
-		Msg.info(this, String.format("%08x ENTER %s", reader.getPointerIndex(), NAME));
+		Msg.trace(this, String.format("%08x ENTER %s", reader.getPointerIndex(), NAME));
 		record_start = reader.getPointerIndex();
 		read_record_type(reader, record_type, record_subtype, NAME);
 
 		begin_block = read_int(reader);
 		block_size = read_int(reader);
-		print();
 		switch ((int) begin_block) {
 		case MufomType.MUFOM_DBLK_MTDEF:
-			new MufomBB1(reader);
+			bb1 = new MufomBB1(reader);
 			break;
 		case MufomType.MUFOM_DBLK_GTDEF:
-			new MufomBB2(reader);
+			bb2 = new MufomBB2(reader);
 			break;
 		case MufomType.MUFOM_DBLK_MSCOPE:
-			new MufomBB3(reader);
+			bb3 = new MufomBB3(reader);
 			break;
 		case MufomType.MUFOM_DBLK_GFUNC:
-			new MufomBB4(reader);
+			bb4 = new MufomBB4(reader);
 			break;
 		case MufomType.MUFOM_DBLK_SLINE:
-			new MufomBB5(reader);
+			bb5 = new MufomBB5(reader);
 			break;
 		case MufomType.MUFOM_DBLK_LFUNC:
-			new MufomBB6(reader);
+			bb6 = new MufomBB6(reader);
 			break;
 		case MufomType.MUFOM_DBLK_ASMSC:
-			new MufomBB10(reader);
+			bb10 = new MufomBB10(reader);
 			break;
 		case MufomType.MUFOM_DBLK_MODSEC:
-			new MufomBB11(reader);
+			bb11 = new MufomBB11(reader);
 			break;
 		default:
 			break;
 		}
 		block_end = reader.getPointerIndex();
-		print();
-		Msg.info(this, String.format("%08x EXIT %s", reader.getPointerIndex(), NAME));
+		Msg.trace(this, String.format("%08x EXIT %s", reader.getPointerIndex(), NAME));
 	}
 }

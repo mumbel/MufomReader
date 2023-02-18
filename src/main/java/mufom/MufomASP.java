@@ -58,6 +58,5 @@ public class MufomASP extends MufomRecord {
 		read_record_type(reader, record_type, record_subtype, NAME);
 		section_index = read_int(reader);
 		current_pc = read_int(reader);
-		print();
 	}
 }

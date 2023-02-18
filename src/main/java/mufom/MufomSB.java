@@ -56,6 +56,5 @@ public class MufomSB extends MufomRecord {
 		record_start = reader.getPointerIndex();
 		read_record_type(reader, record_type, record_subtype, NAME);
 		section_number = read_int(reader);
-		print();
 	}
 }

@@ -45,7 +45,7 @@ public class MufomBE extends MufomRecord {
 	}
 
 	public MufomBE(BinaryReader reader, int bb) throws IOException {
-		Msg.info(this, String.format("%08x ENTER %s", reader.getPointerIndex(), NAME));
+		Msg.trace(this, String.format("%08x ENTER %s", reader.getPointerIndex(), NAME));
 		record_start = reader.getPointerIndex();
 		read_record_type(reader, record_type, record_subtype, NAME);
 		begin_block = bb;
@@ -63,8 +63,7 @@ public class MufomBE extends MufomRecord {
 		default:
 			break;
 		}
-		print();
 
-		Msg.info(this, String.format("%08x EXIT %s", reader.getPointerIndex(), NAME));
+		Msg.trace(this, String.format("%08x EXIT %s", reader.getPointerIndex(), NAME));
 	}
 }

@@ -39,11 +39,13 @@ import ghidra.program.model.mem.MemoryBlock;
 import ghidra.program.model.mem.MemoryBlockException;
 import ghidra.program.model.symbol.SourceType;
 import ghidra.program.model.symbol.SymbolTable;
+import ghidra.util.Msg;
 import ghidra.util.exception.CancelledException;
 import ghidra.util.exception.InvalidInputException;
 import ghidra.util.exception.NotFoundException;
 import ghidra.util.task.TaskMonitor;
 import mufom.MufomHeader.MufomData;
+import mufom.MufomHeader.MufomDebugInformation;
 import mufom.MufomHeader.MufomExternal;
 import mufom.MufomHeader.MufomSectionDefinition;
 
@@ -93,6 +95,26 @@ public class MufomLoader extends AbstractProgramWrapperLoader {
 
 	private AddressSpace getDefaultAddressSpace() {
 		return program.getAddressFactory().getDefaultAddressSpace();
+	}
+	
+	private void createSymbols() throws InvalidInputException {
+		SymbolTable symbolTable = program.getSymbolTable();
+		MufomDebugInformation asw4 = curr.asw4;
+		Address addr = null;
+
+		while (asw4 != null) {
+			for (MufomSymbol symbol : asw4.symbols) {
+				if (symbol.getAddress() < 0 || symbol.getName() == null) {
+					//TODO  which fail this
+					continue;
+				}
+				addr = getDefaultAddressSpace().getAddress(symbol.getAddress());
+				if (null != addr) {
+					symbolTable.createLabel(addr, symbol.getName(), null, SourceType.IMPORTED);
+				}
+			}
+			asw4 = asw4.next;
+		}
 	}
 	
 	private void createLabels() throws InvalidInputException {
@@ -188,6 +210,7 @@ public class MufomLoader extends AbstractProgramWrapperLoader {
 		createSections(log);
 		fillSections();
 		createLabels();
+		createSymbols();
 	}
 
 	@Override

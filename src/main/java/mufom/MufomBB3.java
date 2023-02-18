@@ -16,6 +16,7 @@
 package mufom;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import ghidra.app.util.bin.BinaryReader;
 import ghidra.util.Msg;
@@ -31,6 +32,8 @@ public class MufomBB3 extends MufomRecord {
 	public static final int record_type = MufomType.MUFOM_DBLK_MSCOPE;
 	public static final String NAME = "BB3";
 	public String module_name = null;
+	
+	public ArrayList<MufomSymbol> symbols = new ArrayList<MufomSymbol>();
 
 	private void print() {
 		String msg = NAME + ": " + module_name;
@@ -78,8 +81,9 @@ public class MufomBB3 extends MufomRecord {
 			if (record instanceof MufomASN) {
 				asn = (MufomASN) record;
 				record = MufomRecord.readRecord(reader);
-			}		
-		} while (record instanceof MufomNN);
+			}
+			symbols.add(new MufomSymbol(nn.symbol_name, asn.symbol_name_value, atn.attribute_definition, atn.symbol_name_index));
+		} while (record instanceof MufomNN || record instanceof MufomATN);
 
 		// what is this?
 		if (record instanceof MufomATN) {
@@ -101,13 +105,15 @@ public class MufomBB3 extends MufomRecord {
 			if (record instanceof MufomASN) {
 				asn = (MufomASN) record;
 				record = MufomRecord.readRecord(reader);
-			}		
-		} while (record instanceof MufomNN);
+			}
+			symbols.add(new MufomSymbol(nn.symbol_name, asn.symbol_name_value, atn.attribute_definition, atn.symbol_name_index));
+		} while (record instanceof MufomNN || record instanceof MufomATN);
 
 		if (record instanceof MufomBB) {
 			MufomBB bb = (MufomBB) record;
 
 			if (MufomType.MUFOM_DBLK_LFUNC == bb.begin_block) {
+				symbols.addAll(bb.bb6.symbols);
 				record = MufomRecord.readRecord(reader);
 			}
 		}
@@ -126,13 +132,15 @@ public class MufomBB3 extends MufomRecord {
 			if (record instanceof MufomASN) {
 				asn = (MufomASN) record;
 				record = MufomRecord.readRecord(reader);
-			}		
-		} while (record instanceof MufomNN);
+			}
+			symbols.add(new MufomSymbol(nn.symbol_name, asn.symbol_name_value, atn.attribute_definition, atn.symbol_name_index));
+		} while (record instanceof MufomNN || record instanceof MufomATN);
 
 		if (record instanceof MufomBB) {
 			MufomBB bb = (MufomBB) record;
 			
 			while (MufomType.MUFOM_DBLK_GFUNC == bb.begin_block) {
+				symbols.addAll(bb.bb4.symbols);
 				record = MufomRecord.readRecord(reader);
 
 				do {
@@ -142,15 +150,16 @@ public class MufomBB3 extends MufomRecord {
 					}
 					if (record instanceof MufomATN) {
 						atn = (MufomATN) record;
+						record = MufomRecord.readRecord(reader);
 					} else {
 						break;
-					}
-					record = MufomRecord.readRecord(reader);
+					}			
 					if (record instanceof MufomASN) {
 						asn = (MufomASN) record;
+						record = MufomRecord.readRecord(reader);
 					}
-					record = MufomRecord.readRecord(reader);		
-				} while (record instanceof MufomNN);
+					symbols.add(new MufomSymbol(nn.symbol_name, asn.symbol_name_value, atn.attribute_definition, atn.symbol_name_index));
+				} while (record instanceof MufomNN || record instanceof MufomATN);
 
 				if (!(record instanceof MufomBB)) {
 					record.reset(reader);

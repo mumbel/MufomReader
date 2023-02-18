@@ -176,7 +176,7 @@ public class MufomATN extends MufomRecord {
             hexdump(reader, reader.getPointerIndex(), 0x10);
             throw new IOException();
          }
-        print();
+        //print();
     }
     
     /*

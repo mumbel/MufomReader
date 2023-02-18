@@ -16,6 +16,7 @@
 package mufom;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import ghidra.app.util.bin.BinaryReader;
 import ghidra.util.Msg;
@@ -35,9 +36,7 @@ public class MufomBB11 extends MufomRecord {
 	public long section_offset = -1;
 	public long n5 = -1;
 	
-	MufomNN nn = null;
-	MufomATN atn = null;
-	MufomASN asn = null;
+	public ArrayList<MufomSymbol> symbols = new ArrayList<MufomSymbol>();
 
 	private void print() {
 		String msg = "BB11: " + section_name + " " + section_type + " " + section_number + " 0x" +
@@ -50,7 +49,7 @@ public class MufomBB11 extends MufomRecord {
 	}
 
 	public MufomBB11(BinaryReader reader) throws IOException {
-		Msg.info(this, String.format("%08x ENTER %s", reader.getPointerIndex(), NAME));
+		Msg.trace(this, String.format("%08x ENTER %s", reader.getPointerIndex(), NAME));
 
 		record_offset = reader.getPointerIndex();
 		
@@ -73,6 +72,9 @@ public class MufomBB11 extends MufomRecord {
 			reader.setPointerIndex(reader.getPointerIndex() - 1);
 		}
 
+		MufomNN nn = null;
+		MufomATN atn = null;
+		MufomASN asn = null;
 		MufomRecord record = MufomRecord.readRecord(reader);
 
 		do {
@@ -89,14 +91,19 @@ public class MufomBB11 extends MufomRecord {
 			if (record instanceof MufomASN) {
 				asn = (MufomASN) record;
 				record = MufomRecord.readRecord(reader);
-			}		
-		} while (record instanceof MufomNN);
+			}
+			symbols.add(new MufomSymbol(nn.symbol_name, asn.symbol_name_value, atn.attribute_definition, atn.symbol_name_index));
+		} while (record instanceof MufomNN || record instanceof MufomATN);
 
 		if (record instanceof MufomBB) {
 			MufomBB bb = (MufomBB) record;
 			
 			if (MufomType.MUFOM_DBLK_ASMSC == bb.begin_block) {
+				symbols.addAll(bb.bb10.symbols);
 				record = MufomRecord.readRecord(reader);
+			} else {
+				Msg.info(this, "expected bb10");
+				throw new IOException();
 			}
 		}
 
@@ -114,8 +121,9 @@ public class MufomBB11 extends MufomRecord {
 			if (record instanceof MufomASN) {
 				asn = (MufomASN) record;
 				record = MufomRecord.readRecord(reader);
-			}		
-		} while (record instanceof MufomNN);
+			}
+			symbols.add(new MufomSymbol(nn.symbol_name, asn.symbol_name_value, atn.attribute_definition, atn.symbol_name_index));
+		} while (record instanceof MufomNN || record instanceof MufomATN);
 		
 		if (record instanceof MufomLN) {
 			record.reset(reader);
@@ -124,6 +132,5 @@ public class MufomBB11 extends MufomRecord {
 			Msg.info(this, "bad be 11 " + record);
 			throw new IOException();
 		}
-		print();
 	}
 }

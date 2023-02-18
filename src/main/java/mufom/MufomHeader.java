@@ -16,6 +16,7 @@
 package mufom;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.function.Consumer;
 
 import org.apache.commons.io.HexDump;
@@ -369,7 +370,7 @@ public class MufomHeader {
 
 		public MufomData(MufomData x) throws IOException {
 			long variable_start = reader.getPointerIndex();
-			Msg.warn(this, String.format("%08x - %08x - %08x ", hdr.asw_offset[asw_index], reader.getPointerIndex(),
+			Msg.trace(this, String.format("%08x - %08x - %08x ", hdr.asw_offset[asw_index], reader.getPointerIndex(),
 					hdr.asw_end[asw_index]) + "PARSE MufomData");
 			if (null != x) {
 				x.next = this;
@@ -422,6 +423,8 @@ public class MufomHeader {
 		public MufomBB bb5 = null;
 		public MufomBB bb10 = null;
 
+		public ArrayList<MufomSymbol> symbols = new ArrayList<MufomSymbol>();
+		
 		private void valid() throws IOException {
 
 		}
@@ -467,6 +470,7 @@ public class MufomHeader {
 			
 			// BB3  OR  BB10
 			if (MufomType.MUFOM_DBLK_MSCOPE == bb.begin_block) {
+				symbols.addAll(bb.bb3.symbols);
 				bb3 = bb;
 				record = MufomRecord.readRecord(reader);
 				if (record instanceof MufomBB) {
@@ -474,12 +478,14 @@ public class MufomHeader {
 					
 					// [BB5]
 					if (MufomType.MUFOM_DBLK_SLINE == bb.begin_block) {
+						symbols.addAll(bb.bb5.symbols);
 						bb5 = bb;
 						record = MufomRecord.readRecord(reader);
 						if (record instanceof MufomBB) {
 							bb = (MufomBB) record;
 							
 							if (MufomType.MUFOM_DBLK_ASMSC == bb.begin_block) {
+								symbols.addAll(bb.bb10.symbols);
 								bb10 = bb;
 							} else {
 								record.reset(reader);
@@ -488,6 +494,7 @@ public class MufomHeader {
 							record.reset(reader);
 						}
 					} else if (MufomType.MUFOM_DBLK_ASMSC == bb.begin_block) {
+						symbols.addAll(bb.bb10.symbols);
 						bb10 = bb;
 					} else {
 						record.reset(reader);
@@ -497,6 +504,7 @@ public class MufomHeader {
 				}
 			} else if (MufomType.MUFOM_DBLK_ASMSC == bb.begin_block) {
 				// there is no high-level information
+				symbols.addAll(bb.bb10.symbols);
 				bb10 = bb;
 			} else {
 				Msg.info(this, "bad bb " + bb.begin_block);

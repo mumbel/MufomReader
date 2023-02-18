@@ -16,6 +16,7 @@
 package mufom;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import ghidra.app.util.bin.BinaryReader;
 import ghidra.util.Msg;
@@ -36,6 +37,8 @@ public class MufomBB6 extends MufomRecord {
 	public long code_block_offset = -1;
 	
 	public long n5 = -1;
+	
+	public ArrayList<MufomSymbol> symbols = new ArrayList<MufomSymbol>();
 
 	private void print() {
 		String msg = NAME + ": " + function_name + " " + stack_space + " " + type_index + " " + code_block_offset + " " + n5;
@@ -69,15 +72,16 @@ public class MufomBB6 extends MufomRecord {
 			}
 			if (record instanceof MufomATN) {
 				atn = (MufomATN) record;
+				record = MufomRecord.readRecord(reader);
 			} else {
 				break;
-			}
-			record = MufomRecord.readRecord(reader);
+			}			
 			if (record instanceof MufomASN) {
 				asn = (MufomASN) record;
+				record = MufomRecord.readRecord(reader);
 			}
-			record = MufomRecord.readRecord(reader);		
-		} while ((record instanceof MufomNN) || (record instanceof MufomATN));
+			symbols.add(new MufomSymbol(nn.symbol_name, asn.symbol_name_value, atn.attribute_definition, atn.symbol_name_index));
+		} while (record instanceof MufomNN || record instanceof MufomATN);
 
 		if (record instanceof MufomLN) {
 			record.reset(reader);

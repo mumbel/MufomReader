@@ -57,7 +57,5 @@ public class MufomLD extends MufomRecord {
 		reader.setPointerIndex(data_bytes_offset + address_units);
 		// OR
 		// bytes = reader.readNextByteArray((int) address_units);
-
-		print();
 	}
 }

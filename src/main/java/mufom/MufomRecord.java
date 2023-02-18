@@ -177,17 +177,17 @@ public abstract class MufomRecord {
 			throws IOException {
 		int tmp_type = -1;
 
-		Msg.warn(this, String.format("%08x ENTER %s", reader.getPointerIndex(), name));
+		Msg.trace(this, String.format("%08x ENTER %s", reader.getPointerIndex(), name));
 		tmp_type = read_char(reader);
 		if (record_type != tmp_type) {
-			Msg.info(this, String.format("Bad type %d != %d, %s", tmp_type, record_type, name));
+			Msg.error(this, String.format("Bad type %d != %d, %s", tmp_type, record_type, name));
 			if (do_debug) hexdump(reader, record_offset, 0x10);
 			throw new IOException();
 		}
 		if (-1 != record_subtype) {
 			int tmp_subtype = read_char(reader);
 			if (record_subtype != tmp_subtype) {
-				Msg.info(this, String.format("Bad subtype %u != %u, %s", tmp_subtype, record_subtype, name));
+				Msg.error(this, String.format("Bad subtype %u != %u, %s", tmp_subtype, record_subtype, name));
 				if (do_debug) hexdump(reader, record_offset, 0x10);
 				throw new IOException();
 			}
