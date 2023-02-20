@@ -16,6 +16,7 @@
 package mufom;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import ghidra.app.util.bin.BinaryReader;
 import ghidra.util.Msg;
@@ -30,6 +31,9 @@ public class MufomBB1 extends MufomRecord {
 	public static final String NAME = "BB1";
 	public String module_name = null;
 
+	public ArrayList<MufomTY> types = new ArrayList<MufomTY>();
+	public ArrayList<MufomTY.MufomTypedefType> primitive_types = new ArrayList<MufomTY.MufomTypedefType>();
+
 	private void print() {
 		String msg = NAME + ": " + module_name;
 		if (do_debug) {
@@ -40,7 +44,7 @@ public class MufomBB1 extends MufomRecord {
 	}
 
 	public MufomBB1(BinaryReader reader) throws IOException {
-		Msg.info(this, String.format("%08x ENTER %s", reader.getPointerIndex(), NAME));
+		Msg.trace(this, String.format("%08x ENTER %s", reader.getPointerIndex(), NAME));
 
 		//TODO  Module-Scope Type Definitions (BB1)
 		//TODO      NN and TY records
@@ -50,6 +54,7 @@ public class MufomBB1 extends MufomRecord {
 
 		MufomNN nn = null;
 		MufomTY ty = null;
+		MufomASN asn = null;
 		MufomRecord record = MufomRecord.readRecord(reader);
 
 		do {
@@ -59,13 +64,17 @@ public class MufomBB1 extends MufomRecord {
 			}
 			while (record instanceof MufomTY) {
 				record.reset(reader);
-				ty = new MufomTY(reader, record_type);
+				ty = new MufomTY(reader, record_type, nn.symbol_name);
+				if (ty.type_typedef != null) {
+					primitive_types.add(ty.type_typedef);
+				}
 				record = MufomRecord.readRecord(reader);
 				
 				if (record instanceof MufomASN) {
-					MufomASN asn = (MufomASN) record;
+					asn = (MufomASN) record;
 					record = MufomRecord.readRecord(reader);
 				}
+				types.add(ty);
 			}
 		} while (record instanceof MufomNN);
 

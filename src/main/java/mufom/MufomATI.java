@@ -85,6 +85,12 @@ public class MufomATI extends MufomRecord {
         case MufomType.MUFOM_BUILTIN_M:
         	Msg.info(this, "TYPE: M");
             break;
+        case MufomType.MUFOM_BUILTIN_N:
+        	Msg.info(this, "TYPE: N");
+            break;
+        case MufomType.MUFOM_BUILTIN_Q:
+        	Msg.info(this, "TYPE: Q");
+            break;
         case MufomType.MUFOM_BUILTIN_F:
         	Msg.info(this, "TYPE: F");
             break;
@@ -93,6 +99,12 @@ public class MufomATI extends MufomRecord {
             break;
         case MufomType.MUFOM_BUILTIN_K:
         	Msg.info(this, "TYPE: K");
+            break;
+        case MufomType.MUFOM_BUILTIN_G:
+        	Msg.info(this, "TYPE: G");
+            break;
+        case MufomType.MUFOM_BUILTIN_S:
+        	Msg.info(this, "TYPE: S");
             break;
         case MufomType.MUFOM_BUILTIN_J:
         	Msg.info(this, "TYPE: J");
@@ -121,6 +133,12 @@ public class MufomATI extends MufomRecord {
         case MufomType.MUFOM_BUILTIN_PM:
         	Msg.info(this, "TYPE: PM");
             break;
+        case MufomType.MUFOM_BUILTIN_PN:
+        	Msg.info(this, "TYPE: PN");
+            break;
+        case MufomType.MUFOM_BUILTIN_PQ:
+        	Msg.info(this, "TYPE: PQ");
+            break;
         case MufomType.MUFOM_BUILTIN_PF:
         	Msg.info(this, "TYPE: PF");
             break;
@@ -130,6 +148,12 @@ public class MufomATI extends MufomRecord {
         case MufomType.MUFOM_BUILTIN_PK:
         	Msg.info(this, "TYPE: PK");
         	break;
+        case MufomType.MUFOM_BUILTIN_PG:
+        	Msg.info(this, "TYPE: PG");
+            break;
+        case MufomType.MUFOM_BUILTIN_PS:
+        	Msg.info(this, "TYPE: PS");
+            break;
         default:
         	Msg.info(this, "Bad type " + symbol_type_index);
         	throw new IOException();
@@ -142,7 +166,7 @@ public class MufomATI extends MufomRecord {
 			throw new IOException();
 		}
 		static_symbol = read_int(reader);
-		
+
 		if (MufomType.MUFOM_BUILTIN_UNK != symbol_type_index) {
 			number_of_elements = read_int(reader);
 		}

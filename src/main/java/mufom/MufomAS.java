@@ -126,7 +126,7 @@ public class MufomAS extends MufomRecord {
 				//TODO
 				break;
 			default:
-				if (do_debug) Msg.info(this, String.format("%08x ", reader.getPointerIndex()) + " - DONE " + section_type);
+				//if (do_debug) Msg.info(this, String.format("%08x ", reader.getPointerIndex()) + " - DONE " + section_type);
 				parse_section_type = false;
 				reader.setPointerIndex(reader.getPointerIndex() - 1);
 				break;

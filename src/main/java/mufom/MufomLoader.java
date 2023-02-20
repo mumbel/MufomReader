@@ -30,6 +30,7 @@ import ghidra.framework.model.DomainObject;
 import ghidra.framework.store.LockException;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressSpace;
+import ghidra.program.model.data.DataTypeManager;
 import ghidra.program.model.lang.Endian;
 import ghidra.program.model.listing.Listing;
 import ghidra.program.model.listing.Program;
@@ -95,6 +96,25 @@ public class MufomLoader extends AbstractProgramWrapperLoader {
 
 	private AddressSpace getDefaultAddressSpace() {
 		return program.getAddressFactory().getDefaultAddressSpace();
+	}
+	
+	private void createDataTypes() {
+		MufomDebugInformation asw4 = curr.asw4;
+		DataTypeManager dtm = program.getDataTypeManager();
+		
+		while (null != asw4) {
+			for (MufomTY ty : asw4.types) {
+				switch ((int) ty.ty_code) {
+				case MufomType.MUFOM_CT_STRUCTURE:
+					dtm.addDataType(ty.type_structure.struct, null);
+					break;
+				default:
+					break;
+				}
+			}
+			
+			asw4 = asw4.next;
+		}		
 	}
 	
 	private void createSymbols() throws InvalidInputException {
@@ -207,6 +227,7 @@ public class MufomLoader extends AbstractProgramWrapperLoader {
 		this.curr = mufom;
 		this.log = log;
 
+		createDataTypes();
 		createSections(log);
 		fillSections();
 		createLabels();

@@ -424,6 +424,8 @@ public class MufomHeader {
 		public MufomBB bb10 = null;
 
 		public ArrayList<MufomSymbol> symbols = new ArrayList<MufomSymbol>();
+		public ArrayList<MufomTY> types = new ArrayList<MufomTY>();
+		public ArrayList<MufomTY.MufomTypedefType> primitive_types = new ArrayList<MufomTY.MufomTypedefType>();
 		
 		private void valid() throws IOException {
 
@@ -447,6 +449,8 @@ public class MufomHeader {
 			// [BB2]
 			if (MufomType.MUFOM_DBLK_GTDEF == bb.begin_block) {
 				bb1 = bb;
+				types.addAll(bb1.bb2.types);
+				primitive_types.addAll(bb1.bb2.primitive_types);
 				record = MufomRecord.readRecord(reader);
 				if (record instanceof MufomBB) {
 					bb = (MufomBB) record;
@@ -459,6 +463,8 @@ public class MufomHeader {
 			// [BB1]
 			if (MufomType.MUFOM_DBLK_MTDEF == bb.begin_block) {
 				bb1 = bb;
+				types.addAll(bb1.bb1.types);
+				primitive_types.addAll(bb1.bb1.primitive_types);
 				record = MufomRecord.readRecord(reader);
 				if (record instanceof MufomBB) {
 					bb = (MufomBB) record;
@@ -518,6 +524,13 @@ public class MufomHeader {
 			long variable_end = reader.getPointerIndex();
 			if (variable_end == variable_start)
 				throw new IOException();
+			
+			for (MufomTY ty : types) {
+				if (ty.type_structure != null) {
+					ty.resolveField(ty.type_structure.struct, primitive_types);
+					ty.resolveStructure(ty.type_structure.struct, types);
+				}
+			}
 		}
 	}
 

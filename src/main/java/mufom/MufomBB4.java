@@ -48,7 +48,7 @@ public class MufomBB4 extends MufomRecord {
 	}
 
 	public MufomBB4(BinaryReader reader) throws IOException {
-		Msg.info(this, String.format("%08x ENTER %s", reader.getPointerIndex(), NAME));
+		Msg.trace(this, String.format("%08x ENTER %s", reader.getPointerIndex(), NAME));
 
 		function_name = read_id(reader);
 
@@ -94,5 +94,6 @@ public class MufomBB4 extends MufomRecord {
 			Msg.info(this, "bad BE 4");
 			throw new IOException();
 		}
+		print();
 	}
 }

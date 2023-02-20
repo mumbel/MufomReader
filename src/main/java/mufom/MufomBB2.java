@@ -16,18 +16,23 @@
 package mufom;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import ghidra.app.util.bin.BinaryReader;
 import ghidra.util.Msg;
 
 /*
  * Global type definitions.
- * 
+ *
  * {NN {TY}}
  */
 public class MufomBB2 extends MufomRecord {
 	public static final int record_type = MufomType.MUFOM_DBLK_GTDEF;
+	public static final String NAME = "BB2";
 	public String module_name = null;
+
+	public ArrayList<MufomTY> types = new ArrayList<>();
+	public ArrayList<MufomTY.MufomTypedefType> primitive_types = new ArrayList<>();
 
 	private void print() {
 		String msg = "BB2: '" + module_name + "'";
@@ -39,7 +44,7 @@ public class MufomBB2 extends MufomRecord {
 	}
 
 	public MufomBB2(BinaryReader reader) throws IOException {
-		Msg.info(this, String.format("%08x ", reader.getPointerIndex()) + "ENTER MufomBB2");
+		Msg.trace(this, String.format("%08x ", reader.getPointerIndex()) + "ENTER MufomBB2");
 
 		//TODO  Module-Scope Type Definitions (BB2)
 		//TODO      NN and TY records
@@ -56,9 +61,14 @@ public class MufomBB2 extends MufomRecord {
 				nn = (MufomNN) record;
 				record = MufomRecord.readRecord(reader);
 			}
+
 			while (record instanceof MufomTY) {
 				record.reset(reader);
-				ty = new MufomTY(reader, record_type);
+				ty = new MufomTY(reader, record_type, nn.symbol_name);
+				if (ty.type_typedef != null) {
+					primitive_types.add(ty.type_typedef);
+				}
+				types.add(ty);
 				record = MufomRecord.readRecord(reader);
 			}
 		} while (record instanceof MufomNN);
