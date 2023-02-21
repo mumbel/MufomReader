@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 import ghidra.app.util.bin.BinaryReader;
+import ghidra.program.model.data.DataTypeManager;
 import ghidra.util.Msg;
 
 /*
@@ -48,6 +49,10 @@ public class MufomBB4 extends MufomRecord {
 	}
 
 	public MufomBB4(BinaryReader reader) throws IOException {
+		this(reader, null);
+	}
+
+	public MufomBB4(BinaryReader reader, DataTypeManager dtm) throws IOException {
 		Msg.trace(this, String.format("%08x ENTER %s", reader.getPointerIndex(), NAME));
 
 		function_name = read_id(reader);

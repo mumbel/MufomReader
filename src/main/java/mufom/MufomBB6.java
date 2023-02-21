@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 import ghidra.app.util.bin.BinaryReader;
+import ghidra.program.model.data.DataTypeManager;
 import ghidra.util.Msg;
 
 /*
@@ -50,6 +51,10 @@ public class MufomBB6 extends MufomRecord {
 	}
 
 	public MufomBB6(BinaryReader reader) throws IOException {
+		this(reader, null);
+	}
+
+	public MufomBB6(BinaryReader reader, DataTypeManager dtm) throws IOException {
 		function_name = read_id(reader);
 
 		stack_space = read_int(reader);

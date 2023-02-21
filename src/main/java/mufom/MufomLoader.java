@@ -32,7 +32,6 @@ import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressSpace;
 import ghidra.program.model.data.DataTypeManager;
 import ghidra.program.model.lang.Endian;
-import ghidra.program.model.listing.Listing;
 import ghidra.program.model.listing.Program;
 import ghidra.program.model.mem.Memory;
 import ghidra.program.model.mem.MemoryAccessException;
@@ -55,9 +54,8 @@ import mufom.MufomHeader.MufomSectionDefinition;
  */
 public class MufomLoader extends AbstractProgramWrapperLoader {
 
-	private Program program;
+	private Program prog;
 	private Memory memory;
-	private Listing listing;
 	private MessageLog log;
 	private MufomHeader curr;
 
@@ -70,7 +68,7 @@ public class MufomLoader extends AbstractProgramWrapperLoader {
 	public Collection<LoadSpec> findSupportedLoadSpecs(ByteProvider provider) throws IOException {
 		List<LoadSpec> loadSpecs = new ArrayList<>();
 
-		MufomHeader mufom = new MufomHeader(provider, null);
+		MufomHeader mufom = new MufomHeader(provider, null, null);
 		if (mufom.valid()) {
 			List<QueryResult> results =
 					QueryOpinionService.query(getName(), mufom.machine(), null);
@@ -95,18 +93,24 @@ public class MufomLoader extends AbstractProgramWrapperLoader {
 	}
 
 	private AddressSpace getDefaultAddressSpace() {
-		return program.getAddressFactory().getDefaultAddressSpace();
+		return prog.getAddressFactory().getDefaultAddressSpace();
 	}
 	
 	private void createDataTypes() {
 		MufomDebugInformation asw4 = curr.asw4;
-		DataTypeManager dtm = program.getDataTypeManager();
+		DataTypeManager dtm = prog.getDataTypeManager();
 		
 		while (null != asw4) {
 			for (MufomTY ty : asw4.types) {
 				switch ((int) ty.ty_code) {
 				case MufomType.MUFOM_CT_STRUCTURE:
 					dtm.addDataType(ty.type_structure.struct, null);
+					break;
+				case MufomType.MUFOM_CT_ENUMUMERATION:
+					dtm.addDataType(ty.type_enumumeration.enumeration, null);
+					break;
+				case MufomType.MUFOM_CT_UNION:
+					dtm.addDataType(ty.type_union.union, null);
 					break;
 				default:
 					break;
@@ -118,7 +122,7 @@ public class MufomLoader extends AbstractProgramWrapperLoader {
 	}
 	
 	private void createSymbols() throws InvalidInputException {
-		SymbolTable symbolTable = program.getSymbolTable();
+		SymbolTable symbolTable = prog.getSymbolTable();
 		MufomDebugInformation asw4 = curr.asw4;
 		Address addr = null;
 
@@ -138,7 +142,7 @@ public class MufomLoader extends AbstractProgramWrapperLoader {
 	}
 	
 	private void createLabels() throws InvalidInputException {
-		SymbolTable symbolTable = program.getSymbolTable();
+		SymbolTable symbolTable = prog.getSymbolTable();
 		MufomExternal asw3 = curr.asw3;
 		Address addr = null;
 
@@ -165,14 +169,14 @@ public class MufomLoader extends AbstractProgramWrapperLoader {
 			
 			if (memory.contains(addr, addr.add(length - 1))) {
 				byte[] data = curr.reader.readByteArray(offset, (int) length);
-				program.getMemory().setBytes(addr, data);
+				prog.getMemory().setBytes(addr, data);
 				addr = addr.add(length);
 			}
 			asw5 = asw5.next;
 		}
 	}
 
-	private void createSections(MessageLog log) throws MemoryBlockException, LockException, NotFoundException {
+	private void createSections() throws MemoryBlockException, LockException, NotFoundException {
 		MufomSectionDefinition asw2 = curr.asw2;
 		MemoryBlock blockStart;
 		MemoryBlock blockEnd;
@@ -195,20 +199,20 @@ public class MufomLoader extends AbstractProgramWrapperLoader {
 				// the section gets added that logic may be difficult to tell.
 				if (null == blockStart && null == blockEnd) {
 					// No section contains this address, create a new block
-					blockNew = MemoryBlockUtils.createInitializedBlock(program, false, asw2.getName(), addr, len,
+					blockNew = MemoryBlockUtils.createInitializedBlock(prog, false, asw2.getName(), addr, len,
 							"Section: 0x" + Long.toHexString(asw2.getSectionIndex()), null, true, true, true, log);
 					//TODO  join if next to each other?
 				} else if (null == blockStart && null != blockEnd) {
 					// blockNew overlaps the end of a section
 					len = addr.subtract(blockEnd.getEnd().add(1));
 					addr = blockEnd.getEnd().add(1);
-					blockNew = MemoryBlockUtils.createInitializedBlock(program, false, asw2.getName(), addr, len,
+					blockNew = MemoryBlockUtils.createInitializedBlock(prog, false, asw2.getName(), addr, len,
 							"Section: 0x" + Long.toHexString(asw2.getSectionIndex()), null, true, true, true, log);
 					memory.join(blockEnd, blockNew);
 				} else if (null != blockStart && null == blockEnd) {
 					// blockNew overlaps the start of a section
 					len = blockStart.getStart().subtract(addr);
-					blockNew = MemoryBlockUtils.createInitializedBlock(program, false, asw2.getName(), addr, len,
+					blockNew = MemoryBlockUtils.createInitializedBlock(prog, false, asw2.getName(), addr, len,
 							"Section: 0x" + Long.toHexString(asw2.getSectionIndex()), null, true, true, true, log);
 					memory.join(blockNew, blockStart);
 				} else if (null != blockStart && null != blockEnd) {
@@ -218,29 +222,21 @@ public class MufomLoader extends AbstractProgramWrapperLoader {
 			asw2 = asw2.next;
 		}
 	}
-	
-	private void load(MufomHeader mufom,Program program, TaskMonitor monitor,
-			MessageLog log) throws IOException, InvalidInputException, MemoryAccessException, LockException, NotFoundException {
-		this.program = program;
-		this.memory = program.getMemory();
-		this.listing = program.getListing();
-		this.curr = mufom;
-		this.log = log;
-
-		createDataTypes();
-		createSections(log);
-		fillSections();
-		createLabels();
-		createSymbols();
-	}
 
 	@Override
 	protected void load(ByteProvider provider, LoadSpec loadSpec, List<Option> options,
 			Program program, TaskMonitor monitor, MessageLog log)
 			throws CancelledException, IOException {
-		MufomHeader mufom = new MufomHeader(provider, msg -> log.appendMsg(msg));
-		try {
-			load(mufom, program, monitor, log);
+		try {			
+			this.prog = program;
+			this.memory = program.getMemory();		
+			this.log = log;
+			this.curr = new MufomHeader(provider, msg -> log.appendMsg(msg), program.getDataTypeManager());
+			createDataTypes();
+			createSections();
+			fillSections();
+			createLabels();
+			createSymbols();
 		} catch (InvalidInputException e) {
 			//
 		} catch (MemoryAccessException e) {

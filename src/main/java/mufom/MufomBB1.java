@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 import ghidra.app.util.bin.BinaryReader;
+import ghidra.program.model.data.DataTypeManager;
 import ghidra.util.Msg;
 
 /*
@@ -32,7 +33,9 @@ public class MufomBB1 extends MufomRecord {
 	public String module_name = null;
 
 	public ArrayList<MufomTY> types = new ArrayList<MufomTY>();
-	public ArrayList<MufomTY.MufomTypedefType> primitive_types = new ArrayList<MufomTY.MufomTypedefType>();
+	public ArrayList<MufomTY> typedefs = new ArrayList<MufomTY>();
+	public ArrayList<MufomTY> enumerations = new ArrayList<MufomTY>();
+	public ArrayList<MufomTY> unions = new ArrayList<MufomTY>();
 
 	private void print() {
 		String msg = NAME + ": " + module_name;
@@ -44,6 +47,10 @@ public class MufomBB1 extends MufomRecord {
 	}
 
 	public MufomBB1(BinaryReader reader) throws IOException {
+		this(reader, null);
+	}
+		
+	public MufomBB1(BinaryReader reader, DataTypeManager dtm) throws IOException {
 		Msg.trace(this, String.format("%08x ENTER %s", reader.getPointerIndex(), NAME));
 
 		//TODO  Module-Scope Type Definitions (BB1)
@@ -64,9 +71,18 @@ public class MufomBB1 extends MufomRecord {
 			}
 			while (record instanceof MufomTY) {
 				record.reset(reader);
-				ty = new MufomTY(reader, record_type, nn.symbol_name);
+				ty = new MufomTY(reader, record_type, nn.symbol_name, dtm);
 				if (ty.type_typedef != null) {
-					primitive_types.add(ty.type_typedef);
+					typedefs.add(ty);
+				}
+				if (ty.type_structure != null) {
+					types.add(ty);
+				}
+				if (ty.type_enumumeration != null) {
+					enumerations.add(ty);
+				}
+				if (ty.type_union != null) {
+					unions.add(ty);
 				}
 				record = MufomRecord.readRecord(reader);
 				
@@ -74,7 +90,6 @@ public class MufomBB1 extends MufomRecord {
 					asn = (MufomASN) record;
 					record = MufomRecord.readRecord(reader);
 				}
-				types.add(ty);
 			}
 		} while (record instanceof MufomNN);
 

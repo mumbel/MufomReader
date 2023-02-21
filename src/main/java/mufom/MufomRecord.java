@@ -278,7 +278,7 @@ public abstract class MufomRecord {
 				throw new IOException();
 			}
 		case MufomType.MUFOM_CMD_TY:
-			return new MufomTY(reader, -1, null);
+			return new MufomTY(reader);
 		case MufomType.MUFOM_CMD_RI:
 			return new MufomRI(reader);
 		case MufomType.MUFOM_CMD_WX:

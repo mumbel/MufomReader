@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 import ghidra.app.util.bin.BinaryReader;
+import ghidra.program.model.data.DataTypeManager;
 import ghidra.util.Msg;
 
 /*
@@ -45,6 +46,10 @@ public class MufomBB5 extends MufomRecord {
 	}
 
 	public MufomBB5(BinaryReader reader) throws IOException {
+		this(reader, null);
+	}
+
+	public MufomBB5(BinaryReader reader, DataTypeManager dtm) throws IOException {
 		
 		//TODO  Source File Block Begin (BB5)
 		//TODO      NN,ASN,ATN, line numbers in source

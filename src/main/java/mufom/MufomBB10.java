@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 
 import ghidra.app.util.bin.BinaryReader;
+import ghidra.program.model.data.DataTypeManager;
 import ghidra.util.Msg;
 
 /*
@@ -52,6 +53,10 @@ public class MufomBB10 extends MufomRecord {
 	}
 
 	public MufomBB10(BinaryReader reader) throws IOException {
+		this(reader, null);
+	}
+
+	public MufomBB10(BinaryReader reader, DataTypeManager dtm) throws IOException {
 		Msg.trace(this, String.format("%08x ENTER %s", reader.getPointerIndex(), NAME));
 		
 		//TODO  Assembly Module Block Begin (BB10)

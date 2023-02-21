@@ -17,32 +17,40 @@ package mufom;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 
 import org.apache.commons.lang3.ArrayUtils;
 
 import ghidra.app.util.bin.BinaryReader;
+import ghidra.program.model.data.ArrayDataType;
 import ghidra.program.model.data.CategoryPath;
 import ghidra.program.model.data.CharDataType;
 import ghidra.program.model.data.DataType;
 import ghidra.program.model.data.DataTypeComponent;
+import ghidra.program.model.data.DataTypeManager;
 import ghidra.program.model.data.DoubleComplexDataType;
 import ghidra.program.model.data.DoubleDataType;
+import ghidra.program.model.data.EnumDataType;
 import ghidra.program.model.data.FloatDataType;
 import ghidra.program.model.data.LongDataType;
 import ghidra.program.model.data.LongDoubleDataType;
 import ghidra.program.model.data.LongLongDataType;
+import ghidra.program.model.data.Pointer;
 import ghidra.program.model.data.PointerDataType;
 import ghidra.program.model.data.ShortDataType;
 import ghidra.program.model.data.StringDataType;
 import ghidra.program.model.data.Structure;
 import ghidra.program.model.data.StructureDataType;
 import ghidra.program.model.data.Undefined1DataType;
+import ghidra.program.model.data.UnionDataType;
 import ghidra.program.model.data.UnsignedCharDataType;
 import ghidra.program.model.data.UnsignedLongDataType;
 import ghidra.program.model.data.UnsignedLongLongDataType;
 import ghidra.program.model.data.UnsignedShortDataType;
 import ghidra.program.model.data.VoidDataType;
+import ghidra.util.InvalidNameException;
 import ghidra.util.Msg;
+import ghidra.util.exception.DuplicateNameException;
 
 /*
  * 11.5 TY (type) Command
@@ -87,6 +95,7 @@ public class MufomTY extends MufomRecord {
 	MufomFortranArrayType type_fortran = null;
 	MufomPascalFileNameType type_pascal_fname = null;
 	MufomMType type_m = null;
+	DataTypeManager mufomDtm = null;
 
 	private void print() {
 		String msg = NAME + ": " + type_index +" " + variable_index + " " + Long.toHexString(ty_code);
@@ -97,11 +106,18 @@ public class MufomTY extends MufomRecord {
 		}
 	}
 
-	public MufomTY(BinaryReader reader, int lex_level, String name) throws IOException {
+	public MufomTY(BinaryReader reader) throws IOException {
+		this(reader, -1, null, null);
+	}
+
+	public MufomTY(BinaryReader reader, int lex_level, String name, DataTypeManager dtm) throws IOException {
 		record_start = reader.getPointerIndex();
 		read_record_type(reader, record_type, record_subtype, NAME);
 
+		mufomDtm = dtm;
+		
 		if (-1 == lex_level) {
+			// this is a known TY, return now and let BB set lex
 			return;
 		} else if (MufomType.MUFOM_DBLK_MTDEF == lex_level) {
 			// In BB1 the lex level does not have enough information and is an index, id, and type and ASN
@@ -149,13 +165,13 @@ public class MufomTY extends MufomRecord {
 				type_struct_bitfield = new MufomStructBitfieldType(reader, name);
 				break;
 			case MufomType.MUFOM_CT_ENUMUMERATION:
-				type_enumumeration = new MufomEnumerationType(reader, name);
+				type_enumumeration = new MufomEnumerationType(reader, type_index, name);
 				break;
 			case MufomType.MUFOM_CT_SMALL_POINTER:
 				type_small_pointer = new MufomSmallPointerType(reader, name);
 				break;
 			case MufomType.MUFOM_CT_LARGE_POINTER:
-				type_large_pointer = new MufomLargePointerType(reader, name);
+				type_large_pointer = new MufomLargePointerType(reader, type_index, name);
 				break;
 			case MufomType.MUFOM_CT_RANGE:
 				type_range = new MufomRangeType(reader, name);
@@ -167,7 +183,7 @@ public class MufomTY extends MufomRecord {
 				type_typedef = new MufomTypedefType(reader, type_index, name);
 				break;
 			case MufomType.MUFOM_CT_UNION:
-				type_union = new MufomUnionType(reader, name);
+				type_union = new MufomUnionType(reader, type_index, name);
 				break;
 			case MufomType.MUFOM_CT_VOID:
 				type_void = new MufomVoidType(reader, name);
@@ -214,11 +230,45 @@ public class MufomTY extends MufomRecord {
 		}
 		print();
 	}
+	
+	public DataType findByIndex(long index) {
+		if (mufomDtm == null) {
+			return null;
+		}
+		String tmpindex = "" + index;
+		Iterator<DataType> dts = mufomDtm.getAllDataTypes();
+		while (dts.hasNext()) {
+			DataType dt = dts.next();
+			if (dt.getDescription() == null) {
+				if (dt.getName().startsWith("mufom_") && dt.getName().endsWith("_" + tmpindex)) {
+					return dt;
+				}
+				continue;
+			}
+			if (dt.getDescription().startsWith(tmpindex + ",") ||
+					dt.getDescription().equals(tmpindex)) {
+				return dt;
+			} else if (dt.getDescription().endsWith("," + tmpindex)) {
+				// pointer
+				return PointerDataType.getPointer(dt, mufomDtm);
+			}
+		}
+		return null;
+	}
+	public void addDataType(DataType dt) {
+		if (mufomDtm == null) {
+			return;
+		}
+		mufomDtm.addDataType(dt, null);
+	}
 
-	public DataType resolveTypeDefIndex(long index, ArrayList<MufomTypedefType> types) {
-		for (MufomTypedefType tmp_type : types) {
-			if (index == tmp_type.symbol_type_index) {
-				return tmp_type.symbol_type;
+
+	public DataType resolveTypeDefIndex(long index, ArrayList<MufomTY> types) {
+		for (MufomTY tmp_ty : types) {
+			if (tmp_ty.type_typedef != null) {
+				if (index == tmp_ty.type_index) {
+					return tmp_ty.type_typedef.symbol_type;
+				}
 			}
 		}
 		return Undefined1DataType.dataType;
@@ -235,7 +285,29 @@ public class MufomTY extends MufomRecord {
 		return null;
 	}
 
-	public void resolveField(Structure struct, ArrayList<MufomTypedefType> types) {
+	public DataType resolveEnumerationIndex(long index, ArrayList<MufomTY> types) {
+		for (MufomTY tmp_ty : types) {
+			if (tmp_ty.type_enumumeration != null) {
+				if (index == tmp_ty.type_index) {
+					return tmp_ty.type_enumumeration.enumeration;
+				}
+			}
+		}
+		return null;
+	}
+	
+	public DataType resolveUnionIndex(long index, ArrayList<MufomTY> types) {
+		for (MufomTY tmp_ty : types) {
+			if (tmp_ty.type_union != null) {
+				if (index == tmp_ty.type_index) {
+					return tmp_ty.type_union.union;
+				}
+			}
+		}
+		return null;
+	}
+
+	public void resolveField(Structure struct, ArrayList<MufomTY> types) {
 		DataTypeComponent fields[] = struct.getComponents();
 		ArrayUtils.reverse(fields);
 		for (DataTypeComponent comp : fields) {
@@ -248,7 +320,6 @@ public class MufomTY extends MufomRecord {
 				struct.replace(comp.getOrdinal(), new_comp_type, new_comp_type.getLength(), comp.getFieldName(), null);
 			}
 		}
-		return;
 	}
 
 	public void resolveStructure(Structure struct, ArrayList<MufomTY> types) {
@@ -269,7 +340,69 @@ public class MufomTY extends MufomRecord {
 				}
 			}
 		}
-		return;
+	}
+	
+	public void resolveEnumeration(Structure struct, ArrayList<MufomTY> types) {
+		DataTypeComponent fields[] = struct.getComponents();
+		ArrayUtils.reverse(fields);
+		for (DataTypeComponent comp : fields) {
+			if (null == comp.getComment()) {
+				continue;
+			}
+			long comp_index = Long.parseLong(comp.getComment());
+			DataType new_comp_type = resolveEnumerationIndex(comp_index, types);
+			if (new_comp_type != null && comp.getDataType() != new_comp_type) {
+				//TODO
+				try {
+					struct.replace(comp.getOrdinal(), new_comp_type, new_comp_type.getLength(), comp.getFieldName(), null);
+				} catch (IllegalArgumentException e) {
+					//
+				}
+			}
+		}
+	}
+	
+	public void resolveUnion(Structure struct, ArrayList<MufomTY> types) {
+		DataTypeComponent fields[] = struct.getComponents();
+		ArrayUtils.reverse(fields);
+		for (DataTypeComponent comp : fields) {
+			if (null == comp.getComment()) {
+				continue;
+			}
+			long comp_index = Long.parseLong(comp.getComment());
+			DataType new_comp_type = resolveUnionIndex(comp_index, types);
+			if (new_comp_type != null && comp.getDataType() != new_comp_type) {
+				//TODO
+				try {
+					struct.replace(comp.getOrdinal(), new_comp_type, new_comp_type.getLength(), comp.getFieldName(), null);
+				} catch (IllegalArgumentException e) {
+					//
+				}
+			}
+		}
+	}
+
+	public void resolveStructure(UnionDataType union, ArrayList<MufomTY> types) {
+		DataTypeComponent fields[] = union.getComponents();
+		for (DataTypeComponent comp : fields) {
+			if (null == comp.getComment()) {
+				continue;
+			}
+			long comp_index = Long.parseLong(comp.getComment());
+			DataType new_comp_type = resolveStructureIndex(comp_index, types);
+			if (new_comp_type != null && comp.getDataType() != new_comp_type) {
+				//TODO
+				try {
+					union.add(new_comp_type, comp.getFieldName(), null);
+				} catch (IllegalArgumentException e) {
+					//
+				}
+			}
+		}
+		//TODO  can this be in 1 loop or better?  adding all the new, remove all the original
+		for (DataTypeComponent comp : fields) {
+			union.delete(comp.getOrdinal());
+		}
 	}
 
 
@@ -302,8 +435,10 @@ public class MufomTY extends MufomRecord {
 		public long size = -1;
 		public String name = null;
 		public long value = -1;
+		
+		EnumDataType enumeration = null;
 
-		public MufomEnumerationType(BinaryReader reader, String name) throws IOException {
+		public MufomEnumerationType(BinaryReader reader, long index, String name) throws IOException {
 			//TODO n3/n4/n5/n6/n7  [...]
 
 			long tmp = read_int(reader);
@@ -312,14 +447,25 @@ public class MufomTY extends MufomRecord {
 				throw new IOException();
 			}
 
+			if (null == name) {
+				name = "mufom_enum_" + index;
+			}
+			
 			size = read_int(reader);
+
+			enumeration = new EnumDataType(new CategoryPath("/MUFOM/ENUM"), name, (int) size);
+			enumeration.setDescription("" + index);
+
 			while (true) {
 				name = read_opt_id(reader);
 				if (null == name) {
 					break;
 				}
 				value = read_int(reader);
+				enumeration.add(name, value);
 			}
+			
+			addDataType(enumeration);
 		}
 	}
 
@@ -331,12 +477,31 @@ public class MufomTY extends MufomRecord {
 	 */
 	public class MufomLargePointerType {
 		public static final int record_type = MufomType.MUFOM_CT_LARGE_POINTER;
-		public long type_index = -1;
+		public long pointer_type_index = -1;
+		public long base_type_index = -1;
 
-		public MufomLargePointerType(BinaryReader reader, String name) throws IOException {
+		public Pointer pointer = null;
+		
+		public MufomLargePointerType(BinaryReader reader, long index, String name) throws IOException {
 			//TODO n3/n4
 
-			type_index = read_int(reader);
+			// type index of target, the lookup type for usage of
+			base_type_index = index;
+			
+			// type index of pointer target, the index of the structure to turn into a pointer
+			pointer_type_index = read_int(reader);
+			
+			// does it even make sense to make this?  i guess if its not found at least it
+			// resolves to a pointer
+			DataType dt = findByIndex(pointer_type_index);
+			if (dt == null) {
+				//TODO  is this pointless
+				dt = Undefined1DataType.dataType;
+			} else {
+				//TODO  Will this work? json maybe?
+				dt.setDescription(dt.getDescription() + "," + base_type_index);
+			}
+			pointer = PointerDataType.dataType.newPointer(dt);			
 		}
 	}
 
@@ -370,7 +535,7 @@ public class MufomTY extends MufomRecord {
 				name = "mufom_struct_" + index;
 			}
 
-			struct = new StructureDataType(new CategoryPath("/MUFOM"), name, (int) size);
+			struct = new StructureDataType(new CategoryPath("/MUFOM/STRUCT"), name, (int) size);
 			struct.setDescription("" + index);
 
 			while (true) {
@@ -379,10 +544,15 @@ public class MufomTY extends MufomRecord {
 					break;
 				}
 				field_type_index = read_int(reader);
+				
+				DataType dt = findByIndex(field_type_index);
+				if (dt == null) {
+					dt = Undefined1DataType.dataType;
+				}
 				field_mau_offset = read_int(reader);
-				struct.insertAtOffset((int) field_mau_offset, Undefined1DataType.dataType, 1, field_name, "" + field_type_index);
-				Msg.trace(this, "STRUCT " + field_name + " " +  field_type_index + " " + field_mau_offset);
+				struct.insertAtOffset((int) field_mau_offset, dt, 1, field_name, "" + field_type_index);
 			}
+			addDataType(struct);
 		}
 	}
 
@@ -402,22 +572,38 @@ public class MufomTY extends MufomRecord {
 		public static final int record_type = MufomType.MUFOM_CT_UNION;
 		public long size = -1;
 		public String name = null;
-		public long type_index = -1;
+		public long union_type_index = -1;
 		public long mau_offset = -1;
+		
+		UnionDataType union = null;
 
-		public MufomUnionType(BinaryReader reader, String name) throws IOException {
+		public MufomUnionType(BinaryReader reader, long index, String name) throws IOException {
 			//TODO n3/n4/n5/n6/n7/n8/n9/n10 [...]
 
 			size = read_int(reader);
+
+			if (null == name) {
+				name = "mufom_union_" + index;
+			}
+			
+			union = new UnionDataType(new CategoryPath("/MUFOM/UNION"), name);
+			union.setDescription("" + index);
+			union.add(new ArrayDataType(Undefined1DataType.dataType, (int) size, 1), "buffer" , "" + size);
 
 			while (true) {
 				name = read_opt_id(reader);
 				if (null == name) {
 					break;
 				}
-				type_index = read_int(reader);
+				union_type_index = read_int(reader);
+				DataType dt = findByIndex(union_type_index);
+				if (dt == null) {
+					dt = Undefined1DataType.dataType;
+				}
 				mau_offset = read_int(reader);
+				union.add(dt, name, "" + union_type_index);
 			}
+			addDataType(union);
 		}
 	}
 
@@ -616,9 +802,12 @@ public class MufomTY extends MufomRecord {
 		public DataType symbol_type;
 
 		public MufomTypedefType(BinaryReader reader, long index, String name) throws IOException {
-
 			symbol_type_index = index;
 			long tmp_index = read_int(reader);
+			boolean is_pointer = tmp_index >= 0x20;
+			if (is_pointer) {
+				tmp_index -= 0x20;
+			}
 			switch ((int) tmp_index) {
 	        case MufomType.MUFOM_BUILTIN_UNK:
 	        	Msg.info(this, "TYPE: UNK");
@@ -684,70 +873,24 @@ public class MufomTY extends MufomRecord {
 	        	Msg.info(this, "TYPE: J");
 	        	symbol_type = PointerDataType.dataType;
 	            break;
-	        case MufomType.MUFOM_BUILTIN_PUNK:
-	        	Msg.info(this, "TYPE: PUNK");
-	        	symbol_type = PointerDataType.dataType.newPointer(Undefined1DataType.dataType);
-	            break;
-	        case MufomType.MUFOM_BUILTIN_PV:
-	        	Msg.info(this, "TYPE: PV");
-	        	symbol_type = PointerDataType.dataType.newPointer(VoidDataType.dataType);
-	            break;
-	        case MufomType.MUFOM_BUILTIN_PB:
-	        	Msg.info(this, "TYPE: PB");
-	        	symbol_type = PointerDataType.dataType.newPointer(CharDataType.dataType);
-	        	break;
-	        case MufomType.MUFOM_BUILTIN_PC:
-	        	Msg.info(this, "TYPE: PC");
-	        	symbol_type = PointerDataType.dataType.newPointer(UnsignedCharDataType.dataType);
-	        	break;
-	        case MufomType.MUFOM_BUILTIN_PH:
-	        	Msg.info(this, "TYPE: PH");
-	        	symbol_type = PointerDataType.dataType.newPointer(ShortDataType.dataType);
-	        	break;
-	        case MufomType.MUFOM_BUILTIN_PI:
-	        	Msg.info(this, "TYPE: PI");
-	        	symbol_type = PointerDataType.dataType.newPointer(UnsignedShortDataType.dataType);
-	        	break;
-	        case MufomType.MUFOM_BUILTIN_PL:
-	        	Msg.info(this, "TYPE: PL");
-	        	symbol_type = PointerDataType.dataType.newPointer(LongDataType.dataType);
-	            break;
-	        case MufomType.MUFOM_BUILTIN_PM:
-	        	Msg.info(this, "TYPE: PM");
-	        	symbol_type = PointerDataType.dataType.newPointer(UnsignedLongDataType.dataType);
-	            break;
-	        case MufomType.MUFOM_BUILTIN_PN:
-	        	Msg.info(this, "TYPE: PN");
-	        	symbol_type = PointerDataType.dataType.newPointer(LongLongDataType.dataType);
-	            break;
-	        case MufomType.MUFOM_BUILTIN_PQ:
-	        	Msg.info(this, "TYPE: PQ");
-	        	symbol_type = PointerDataType.dataType.newPointer(UnsignedLongLongDataType.dataType);
-	            break;
-	        case MufomType.MUFOM_BUILTIN_PF:
-	        	Msg.info(this, "TYPE: PF");
-	        	symbol_type = PointerDataType.dataType.newPointer(FloatDataType.dataType);
-	            break;
-	        case MufomType.MUFOM_BUILTIN_PD:
-	        	Msg.info(this, "TYPE: PD");
-	        	symbol_type = PointerDataType.dataType.newPointer(DoubleDataType.dataType);
-	            break;
-	        case MufomType.MUFOM_BUILTIN_PK:
-	        	Msg.info(this, "TYPE: PK");
-	        	symbol_type = PointerDataType.dataType.newPointer(DoubleComplexDataType.dataType);
-	        	break;
-	        case MufomType.MUFOM_BUILTIN_PG:
-	        	Msg.info(this, "TYPE: PG");
-	        	symbol_type = PointerDataType.dataType.newPointer(LongDoubleDataType.dataType);
-	            break;
-	        case MufomType.MUFOM_BUILTIN_PS:
-	        	Msg.info(this, "TYPE: PS");
-	        	symbol_type = PointerDataType.dataType.newPointer(StringDataType.dataType);
-	            break;
 	        default:
-	        	Msg.info(this, "Bad type " + symbol_type_index + " " + tmp_index);
+	        	Msg.info(this, "Bad type " + symbol_type_index + " " + tmp_index + " " + is_pointer);
 	        	throw new IOException();
 	        }
+			if (mufomDtm == null) {
+				return;
+			}
+			try {
+				if (is_pointer) {
+					symbol_type = PointerDataType.dataType.newPointer(symbol_type);
+				}				
+				symbol_type = symbol_type.copy(mufomDtm);
+				symbol_type.setCategoryPath(new CategoryPath("/MUFOM/BUILTIN"));
+				symbol_type.setName("mufom_" + name.replace(' ', '_') + "_" + symbol_type_index);
+				addDataType(symbol_type);
+			} catch (DuplicateNameException e) {
+			} catch (InvalidNameException e) {
+			}
 		}
 	}
 

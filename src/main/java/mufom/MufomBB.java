@@ -18,6 +18,7 @@ package mufom;
 import java.io.IOException;
 
 import ghidra.app.util.bin.BinaryReader;
+import ghidra.program.model.data.DataTypeManager;
 import ghidra.util.Msg;
 
 public class MufomBB extends MufomRecord {
@@ -51,6 +52,10 @@ public class MufomBB extends MufomRecord {
 	}
 
 	public MufomBB(BinaryReader reader) throws IOException {
+		this(reader, null);
+	}
+
+	public MufomBB(BinaryReader reader, DataTypeManager dtm) throws IOException {
 		Msg.trace(this, String.format("%08x ENTER %s", reader.getPointerIndex(), NAME));
 		record_start = reader.getPointerIndex();
 		read_record_type(reader, record_type, record_subtype, NAME);
@@ -59,28 +64,28 @@ public class MufomBB extends MufomRecord {
 		block_size = read_int(reader);
 		switch ((int) begin_block) {
 		case MufomType.MUFOM_DBLK_MTDEF:
-			bb1 = new MufomBB1(reader);
+			bb1 = new MufomBB1(reader, dtm);
 			break;
 		case MufomType.MUFOM_DBLK_GTDEF:
-			bb2 = new MufomBB2(reader);
+			bb2 = new MufomBB2(reader, dtm);
 			break;
 		case MufomType.MUFOM_DBLK_MSCOPE:
-			bb3 = new MufomBB3(reader);
+			bb3 = new MufomBB3(reader, dtm);
 			break;
 		case MufomType.MUFOM_DBLK_GFUNC:
-			bb4 = new MufomBB4(reader);
+			bb4 = new MufomBB4(reader, dtm);
 			break;
 		case MufomType.MUFOM_DBLK_SLINE:
-			bb5 = new MufomBB5(reader);
+			bb5 = new MufomBB5(reader, dtm);
 			break;
 		case MufomType.MUFOM_DBLK_LFUNC:
-			bb6 = new MufomBB6(reader);
+			bb6 = new MufomBB6(reader, dtm);
 			break;
 		case MufomType.MUFOM_DBLK_ASMSC:
-			bb10 = new MufomBB10(reader);
+			bb10 = new MufomBB10(reader, dtm);
 			break;
 		case MufomType.MUFOM_DBLK_MODSEC:
-			bb11 = new MufomBB11(reader);
+			bb11 = new MufomBB11(reader, dtm);
 			break;
 		default:
 			break;

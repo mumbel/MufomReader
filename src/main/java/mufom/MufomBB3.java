@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 import ghidra.app.util.bin.BinaryReader;
+import ghidra.program.model.data.DataTypeManager;
 import ghidra.util.Msg;
 
 /*
@@ -45,6 +46,10 @@ public class MufomBB3 extends MufomRecord {
 	}
 
 	public MufomBB3(BinaryReader reader) throws IOException {
+		this(reader, null);
+	}
+
+	public MufomBB3(BinaryReader reader, DataTypeManager dtm) throws IOException {
 
 		//TODO  High Level Module Block Begin (BB3)
 		//TODO      Global Variables (NN, ATN8, ASN)

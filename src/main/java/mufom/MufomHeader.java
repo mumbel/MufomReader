@@ -24,12 +24,14 @@ import org.apache.commons.io.HexDump;
 import ghidra.app.util.bin.BinaryReader;
 import ghidra.app.util.bin.ByteProvider;
 import ghidra.program.model.data.DataType;
+import ghidra.program.model.data.DataTypeManager;
 import ghidra.util.Msg;
 
 public class MufomHeader {
 	public final static String MUFOM_NAME = "IEEE-695-MUFOM";
 	public BinaryReader reader = null;
 	private Consumer<String> errorConsumer;
+	private DataTypeManager mufomDtm = null;
 
 	public MufomHeaderPart hdr = null;
 	public MufomADExtension asw0 = null;
@@ -40,10 +42,12 @@ public class MufomHeader {
 	public MufomData asw5 = null;
 	public MufomTrailer asw6 = null;
 	public MufomEnd asw7 = null;
-
-	public MufomHeader(ByteProvider bp, Consumer<String> errorConsumer) throws IOException {
+	
+	public MufomHeader(ByteProvider bp, Consumer<String> errorConsumer, DataTypeManager dtm) throws IOException {
 		reader = new BinaryReader(bp, false);
 		reader.setPointerIndex(0);
+		mufomDtm = dtm;
+
 		Msg.warn(this, String.format("%08x-%08x ", 0, reader.length()) + "PARSE MUFOM");
         this.errorConsumer = errorConsumer != null ? errorConsumer : msg -> {
 			/* no logging if errorConsumer was null */
@@ -139,9 +143,9 @@ public class MufomHeader {
 		} else if (hdr.asw_offset[3] > 0 && null == asw3) {
 			Msg.error(this, "invalid ASW3");
 			return false;
-//		} else if (hdr.asw_offset[4] > 0 && null == asw4) {
-//			Msg.error(this, "invalid ASW4");
-//			return false;
+		} else if (hdr.asw_offset[4] > 0 && null == asw4) {
+			Msg.error(this, "invalid ASW4");
+			return false;
 		} else if (hdr.asw_offset[5] > 0 && null == asw5) {
 			Msg.error(this, "invalid ASW5");
 			return false;
@@ -419,15 +423,18 @@ public class MufomHeader {
 		private final int asw_index = MufomType.MUFOM_PT_DEBUG;
 		public MufomDebugInformation next = null;
 		public MufomBB bb1 = null;
+		public MufomBB bb2 = null;
 		public MufomBB bb3 = null;
 		public MufomBB bb5 = null;
 		public MufomBB bb10 = null;
 
 		public ArrayList<MufomSymbol> symbols = new ArrayList<MufomSymbol>();
 		public ArrayList<MufomTY> types = new ArrayList<MufomTY>();
-		public ArrayList<MufomTY.MufomTypedefType> primitive_types = new ArrayList<MufomTY.MufomTypedefType>();
+		public ArrayList<MufomTY> enumerations = new ArrayList<MufomTY>();
+		public ArrayList<MufomTY> typedefs = new ArrayList<MufomTY>();
+		public ArrayList<MufomTY> unions = new ArrayList<MufomTY>();
 		
-		private void valid() throws IOException {
+		private void valid() {
 
 		}
 
@@ -448,23 +455,35 @@ public class MufomHeader {
 
 			// [BB2]
 			if (MufomType.MUFOM_DBLK_GTDEF == bb.begin_block) {
-				bb1 = bb;
-				types.addAll(bb1.bb2.types);
-				primitive_types.addAll(bb1.bb2.primitive_types);
+				if (mufomDtm != null) {
+					reader.setPointerIndex(bb.record_start);
+					bb = new MufomBB(reader, mufomDtm);
+				}
+				bb2 = bb;
+				types.addAll(bb2.bb2.types);
+				typedefs.addAll(bb2.bb2.typedefs);
+				enumerations.addAll(bb2.bb2.enumerations);
+				unions.addAll(bb2.bb2.unions);
 				record = MufomRecord.readRecord(reader);
 				if (record instanceof MufomBB) {
 					bb = (MufomBB) record;
 				} else {
-					Msg.info(this, "bad bb (3)");
+					Msg.info(this, "bad bb (1|3)");
 					throw new IOException();
 				}
 			}
 
 			// [BB1]
 			if (MufomType.MUFOM_DBLK_MTDEF == bb.begin_block) {
+				if (mufomDtm != null) {
+					reader.setPointerIndex(bb.record_start);
+					bb = new MufomBB(reader, mufomDtm);
+				}
 				bb1 = bb;
 				types.addAll(bb1.bb1.types);
-				primitive_types.addAll(bb1.bb1.primitive_types);
+				typedefs.addAll(bb1.bb1.typedefs);
+				enumerations.addAll(bb1.bb1.enumerations);
+				unions.addAll(bb1.bb1.unions);
 				record = MufomRecord.readRecord(reader);
 				if (record instanceof MufomBB) {
 					bb = (MufomBB) record;
@@ -525,12 +544,23 @@ public class MufomHeader {
 			if (variable_end == variable_start)
 				throw new IOException();
 			
+			/*
 			for (MufomTY ty : types) {
 				if (ty.type_structure != null) {
-					ty.resolveField(ty.type_structure.struct, primitive_types);
+					ty.resolveField(ty.type_structure.struct, typedefs);
+					ty.resolveEnumeration(ty.type_structure.struct, enumerations);
+					ty.resolveUnion(ty.type_structure.struct, unions);
 					ty.resolveStructure(ty.type_structure.struct, types);
 				}
+				if (ty.type_union != null) {
+					//TODO  need to switch out more than just struct
+					//ty.resolveField(ty.type_union.union, typedefs);
+					//ty.resolveEnumeration(ty.type_union.union, enumerations);
+					ty.resolveStructure(ty.type_union.union, types);
+					//ty.resolveUnion(ty.type_union.union, unions);
+				}
 			}
+			*/
 		}
 	}
 
